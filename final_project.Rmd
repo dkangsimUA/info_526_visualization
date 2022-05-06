@@ -1,0 +1,190 @@
+---
+title: "INFO 526 Final Project"
+output: html_notebook
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+You are to submit a GitHub link to your final project (remember to include the data in your repo so I can run your code).
+
+The total number of points assigned to your final project submission is 20, distributed as follows:
+
+-   2 points for a working link to GitHub
+-   2 points for a description of the data and where the data was acquired
+-   6 points, divided into 2 points for each of three plots (for a total of three different types of plot, from the different types we've seen in class)
+-   2 points for the use of colorblind-friendly color schemes
+-   2 points for the use of the appropriate color scheme (categorical, divergent, or continuous) given the variable mapped to the color/fill aesthetics
+-   2 points for appropriate axes scales and labels (meaning they are legible, not overlapping, and clearly state what is being displayed in the plot)
+-   2 points for titles and captions that make it clear what the plot is
+    about
+-   2 points for appropriate ordering of group levels (examples: unordered categorical variables are displayed not according to alphabetical order, but reordered by the numeric variable used; ordered categorical variables are shown in their correct order)
+    
+#To create a new repository, log in to your GitHub account and click "new" next to repositories on the main page (or in your GitHub profile, click "Repositories" on the top and then click the green "New" button). Give your repository a name, make it public or private (add me to the repo, adrianaps@arizona.edu, so I can see and grade your code). Once created, you can copy the .git url and proceed like you normally would with any assignment (start a new version control project in RStudio using the .git url).
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+For this proposed project, I plan to use Uniform Manifold Approximation and Projection for dimensional reduction technique. I plan to use the birthweight data that was collected at Baystate Medical Center, Springfield, Massachusetts during 1986. The data is provided in the MASS package. 
+
+## Data prep
+
+```{r }
+data = MASS::birthwt #189 obs. 10 variables
+summary(data)
+#for more information about dataset
+?MASS::birthwt
+```
+
+#NOTE: UMAP seeks to capture local distances (nearby points stay together) rather than global distances. It is inspired by the _t-SNE_ but UMAP is preferred due to its ability to perform more scalable performance and capturing the local strucutre. The key assumption is that the data distribution can be approximated by smoothing between observation with similar covariate profiles.
+
+```{r }
+#record value labels:
+
+data$race = factor(data$race, labels = c("white", "black", "other"))
+#str(data)
+
+# Create a list to hold different variables.
+task = list(
+  # Birth weight or low are generally our outcomes for supervised analyses.
+  outcomes = c("bwt", "low"),
+  # Variables we want to exclude from our analysis - none currently.
+  exclude = NULL
+)
+
+#since UMAP is approixmated by smoothing between observation with similar covariate profiles, we set the dataset; this provides a list of covariates as a list form.
+task$covariates = setdiff(names(data), 
+                          task$outcomes)
+```
+
+
+```{r }
+# Review our data structure.
+task
+
+dplyr::glimpse(data[task$covariates])
+sapply(data[task$covariates], 
+       class)
+# Convert factor to indicators - don't run on outcomes though.
+#remotes::install_github("ck37/ck37r")
+result = ck37r::factors_to_indicators(data, 
+                                      predictors = task$covariates, 
+                                      verbose = TRUE)
+data = result$data
+```
+
+The dependent variable would be `birthweight` (bwt) in grams and indicator of birth weight less than 2.5 kg (low). Covariates include an `age`, `smoke status`, `previous premature labors`, `height`, `weight`, and `race` and `ethnicity` as listed in the manual. 
+
+The main variable of interest is `low birth weight` (low), a binary response variable low (D. W. Hosmer & Lemeshow, 1989). The number of previous premature labors, or `ptl`, is reduced to a binary indicator of past history and the number of physician visits during the first trimester, or`ftv`, is reduced to a factor with three levels.
+
+**The unique thing about this project is that I am exploring the difference between linear dimensional reduction techqniue (PCA) and nonlinear techniques such as UMAP and t-SNE using relatively small data set.**
+
+## Basic UMAP
+
+```{r basic_umap}
+#install.packages("umap", dep=T)
+library(umap)
+# Conduct UMAP analysis of our matrix data, setting a random seed.
+result.1 = umap(data, 
+              random_state = 1)
+?umap::umap
+```
+
+## Plot UMAP
+
+```{r umap_plot}
+library(ggplot2)
+library(ggthemes)
+library(viridis)
+library(tidyverse)
+# Compile results into a dataframe.
+plot_data = data.frame(x = result.1$layout[, 1],
+                       y = result.1$layout[, 2],
+                       data[, task$outcomes]) #bwt and low
+# Create an initial plot object.
+
+plot_data%>%
+  ggplot(aes(x = x, 
+             y = y, 
+             color=bwt))+
+             #color = factor(bwt))) +
+  theme_linedraw()+
+  scale_color_viridis(option="turbo")+
+  #scale_color_viridis(discrete=TRUE)+
+  #scale_color_gradient2(low="blue", high="red")+
+  geom_point(aes(color = low)) + 
+  labs(title= "UMAP dimensional reduction",
+       caption = "Data source: MASS::birthweight")
+  
+#theme(legend.position = "none")
+```
+
+
+# tSNE
+
+```{r }
+#install.packages("Rtsne", dep=T)
+library(Rtsne)
+
+data.2<- unique(data)#remove duplicates
+data.3<- as.matrix(data.2)
+
+tsne <- Rtsne(data.3)
+
+tsne_plot <- data.frame(x = tsne$Y[,1], 
+                        y = tsne$Y[,2], 
+                        bwt = data.2$bwt)
+
+tsne_plot%>%
+  ggplot(aes(x=x, y=y, color=bwt)) + 
+  theme_minimal()+
+  scale_color_viridis(option="turbo")+
+  geom_point() + 
+  labs(title= "t-SNE dimensional reduction",
+       caption = "Data source: MASS::birthweight")
+  
+```
+
+#PCA
+
+```{r}
+library(FactoMineR)
+library(reshape2)
+
+pca<- PCA(data.2, graph=F)
+
+data.2$pc1 <- pca$ind$coord[, 1] # indexing the first column
+
+data.2$pc2 <- pca$ind$coord[, 2]  # indexing the second column
+
+pca.vars <- pca$var$coord %>% data.frame
+
+pca.vars$vars <- rownames(pca.vars)
+
+pca.vars.m <- melt(pca.vars, id.vars = "vars")
+
+circleFun <- function(center = c(0,0),diameter = 1, npoints = 100){
+  r = diameter / 2
+  tt <- seq(0,2*pi,length.out = npoints)
+  xx <- center[1] + r * cos(tt)
+  yy <- center[2] + r * sin(tt)
+  return(data.frame(x = xx, y = yy))
+}
+
+circ <- circleFun(c(0,0),2,npoints = 500)
+
+
+data.2%>%
+  ggplot(aes(x = pc1, 
+             y = pc2, 
+             color = bwt)) +
+  theme_minimal()+
+  scale_color_viridis(option="turbo")+
+  geom_hline(yintercept = 0, lty = 2) +
+  geom_vline(xintercept = 0, lty = 2) +
+  geom_point(alpha = 0.8) +
+  labs(title= "PCA dimensional reduction",
+       caption = "Data source: MASS::birthweight")
+```
