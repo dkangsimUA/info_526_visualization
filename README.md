@@ -7,8 +7,11 @@ Instruction: The total number of points assigned to your final project submissio
 -   6 points, divided into 2 points for each of three plots (for a total of three different types of plot, from the different types we've seen in class)
 >> Using the `birthwt` data, I have applied the following three plots: 1) Uniformed Manifold Approximation and Porjection for dimensaionl reduction technique; 2) tSNA; 3) Principal component analsysis. 
 -   2 points for the use of colorblind-friendly color schemes
+>> I used the "turbo" palette from the viridis package.
 -   2 points for the use of the appropriate color scheme (categorical, divergent, or continuous) given the variable mapped to the color/fill aesthetics
+>> I used the "turbo" palette from the viridis package; and used `scale_color_viridis' function for continuous variable.
 -   2 points for appropriate axes scales and labels (meaning they are legible, not overlapping, and clearly state what is being displayed in the plot)
--   2 points for titles and captions that make it clear what the plot is
-    about
+>> labeled legend and titles
+-   2 points for titles and captions that make it clear what the plot is about
+>> added titles
 -   2 points for appropriate ordering of group levels (examples: unordered categorical variables are displayed not according to alphabetical order, but reordered by the numeric variable used; ordered categorical variables are shown in their correct order)
